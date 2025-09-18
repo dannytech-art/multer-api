@@ -187,43 +187,102 @@ exports.updateProductImage = async (req, res) => {
     });
   }
 };
-exports.updateSpecificFile = async (req,res) =>{
+exports.updateSpecificFile = async (req, res) => {
   try {
-    const { id, index } = req.params
-    const product = await productModel.findById(id)
-    if (!product) {
-      res.status(404).json({
-        message: `product does not exist`
-      })
+    const { id, index } = req.params;
+    const { productName, quantity, description, price } = req.body;
 
+    const product = await productModel.findById(id);
+    if (!product) {
+      return res.status(404).json({
+        message: `product does not exist`
+      });
     }
+
+    const fileindex = parseInt(index, 10);
+
+    if (fileindex < 0 || fileindex >= product.images.length) {
+      return res.status(400).json({
+        message: `Invalid index`
+      });
+    }
+
+    const oldImagePath = product.images[fileindex];
+    if (fs.existsSync(oldImagePath)) {
+      fs.unlinkSync(oldImagePath);
+    }
+
+    product.images[fileindex] = req.files[0].path;
+
     const data = {
       productName: productName || product.productName,
       quantity: quantity || product.quantity,
       description: description || product.description,
       price: price || product.price,
-      images: images || product.images
-    }
-      const fileindex = parseInt(index,10)
-      if (fileindex < 0 || fileindex >= product.images.length) {
-        res.status(400).json({
-          message: `put the index currectly`
-        })
-        const oldImagePath = product.images[fileindex]
-        if (fs.existsSync(oldImagePath)) {
-           fs.unlinkSync(oldImagePath);
-        }
-        product.images[fileindex] = req.files[0].path;
+      images: product.images, 
+    };
 
-      }
-      const updatedProduct = await productModel.findByIdAndUpdate(id,data,{new: true})
-      res.status(200).json({
-      message: `updated successfully`,
+    const updatedProduct = await productModel.findByIdAndUpdate(id, data, { new: true });
+
+    res.status(200).json({
+      message: `Image at index ${fileindex} updated successfully`,
       data: updatedProduct
-      })
+    });
+
   } catch (error) {
     res.status(500).json({
       message: error.message,
     });
   }
-}
+};
+exports.updateMultipleFiles = async (req, res) => {
+  try {
+    const { id, indexes } = req.params;
+
+       const { productName, quantity, description, price } = req.body;
+
+
+    const product = await productModel.findById(id);
+    if (!product) {
+      return res.status(404).json({ message: "Product does not exist" });
+    }
+
+    
+    const indexArray = indexes.split(",").map((el) => parseInt(el.trim(), 10));
+
+
+    const invalidIndex = indexArray.some((el) => el < 0 || el >= product.images.length);
+    if (invalidIndex) {
+      return res.status(400).json({ message: "Invalid index provided" });
+    }
+
+    indexArray.forEach((fileIndex, i) => {
+      const oldImagePath = product.images[fileIndex];
+      if (fs.existsSync(oldImagePath)) {
+        fs.unlinkSync(oldImagePath);
+      }
+
+      if (req.files[i]) {
+        product.images[fileIndex] = req.files[i].path;
+      }
+    });
+
+    const data = {
+      productName: req.body?.productName || product.productName,
+      quantity: req.body?.quantity || product.quantity,
+      description: req.body?.description || product.description,
+      price: req.body?.price || product.price,
+      images: product.images,
+    };
+
+    const updatedProduct = await productModel.findByIdAndUpdate(id, data, { new: true });
+
+    return res.status(200).json({
+      message: "Selected images updated successfully",
+      data: updatedProduct,
+    });
+
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};

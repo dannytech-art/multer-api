@@ -247,7 +247,14 @@ exports.updateMultipleFiles = async (req, res) => {
       return res.status(404).json({ message: "Product does not exist" });
     }
 
-    
+      const data = {
+      productName: productName || product.productName,
+      quantity: quantity || product.quantity,
+      description: description || product.description,
+      price: price || product.price,
+      images: product.images,
+    };
+
     const indexArray = indexes.split(",").map((el) => parseInt(el.trim(), 10));
 
 
@@ -266,14 +273,6 @@ exports.updateMultipleFiles = async (req, res) => {
         product.images[fileIndex] = req.files[i].path;
       }
     });
-
-    const data = {
-      productName: req.body?.productName || product.productName,
-      quantity: req.body?.quantity || product.quantity,
-      description: req.body?.description || product.description,
-      price: req.body?.price || product.price,
-      images: product.images,
-    };
 
     const updatedProduct = await productModel.findByIdAndUpdate(id, data, { new: true });
 
